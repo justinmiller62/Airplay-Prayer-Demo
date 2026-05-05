@@ -67,10 +67,10 @@ enum PrayerTheme {
 
         var tvBody: CGFloat {
             switch self {
-            case .small:  return 68
-            case .medium: return 82
-            case .large:  return 96
-            case .xlarge: return 112
+            case .small:  return 34
+            case .medium: return 42
+            case .large:  return 50
+            case .xlarge: return 58
             }
         }
         var tvHeader: CGFloat { tvBody * 1.18 }
