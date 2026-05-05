@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Prayer AirPlay Demo</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<!--
+	  Opt into the device's full ProMotion refresh rate (up to 120 Hz on
+	  iPhone Pro models). Without this key iOS caps animations and
+	  redraws at 60 Hz, which makes large-text scroll feel choppier than
+	  it does in apps that opt in. Affects only iPhone; the external TV
+	  scene runs at the receiver's own refresh rate regardless.
+	-->
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<!--
+	  Scene manifest declares TWO scene roles:
+	    1. UIWindowSceneSessionRoleApplication — the phone scene.
+	    2. UIWindowSceneSessionRoleExternalDisplayNonInteractive — the TV scene.
+
+	  When iOS detects an external display via AirPlay (in app-controlled mode,
+	  not screen mirroring), it spins up a separate UIWindowScene using the
+	  External Display Configuration below. This is what lets the phone keep
+	  its portrait UI while the TV gets an independent landscape scene rendered
+	  at the external screen's native size.
+	-->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Phone Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).PhoneSceneDelegate</string>
+				</dict>
+			</array>
+			<key>UIWindowSceneSessionRoleExternalDisplayNonInteractive</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>External Display Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).ExternalSceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<!--
+	  Phone scene is portrait-only. The external (TV) scene is non-interactive
+	  and uses the external display's native size, so its geometry is determined
+	  by the screen, not by this key.
+	-->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>
