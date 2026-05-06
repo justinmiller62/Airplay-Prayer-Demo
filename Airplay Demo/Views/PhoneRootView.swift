@@ -9,6 +9,13 @@
 //  out for hand-held reading. Locked to portrait by Info.plist so that
 //  rotating the phone does NOT rotate this view (or affect the TV).
 //
+//  Routing:
+//  Before the user picks a language, this view shows LanguagePickerView
+//  (English vs Latin). Once a language is chosen on PrayerSession, the
+//  transcript replaces the picker. The TV scene reads the same flag and
+//  switches between its splash, single-column English, and bilingual
+//  Latin/English layouts in lockstep.
+//
 //  How sync to the TV works (1-to-1):
 //  This view measures every line's frame inside its scroll content via
 //  a preference key. On every scroll update it figures out which line
@@ -16,7 +23,8 @@
 //  has scrolled INTO that line (0...1). Both numbers are written to
 //  PrayerSession. The TV scene measures its own line frames the same
 //  way and applies an `.offset(y:)` so the same line is at its top
-//  with the same in-line fraction.
+//  with the same in-line fraction. The sync is language-independent
+//  because line indices match across English and Latin.
 //
 //  Font-size change handling:
 //  When the user taps "Tt", line heights change. The ScrollView keeps
@@ -58,21 +66,34 @@ struct PhoneRootView: View {
         ZStack {
             PrayerTheme.background.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                topBar
-                transcript
-                playerSpace
+            if let language = session.language {
+                transcriptScreen(language: language)
+            } else {
+                LanguagePickerView()
             }
         }
         .preferredColorScheme(.dark)
     }
 
+    // MARK: - Transcript screen
+
+    @ViewBuilder
+    private func transcriptScreen(language: PrayerLanguage) -> some View {
+        VStack(spacing: 0) {
+            topBar(language: language)
+            transcript(language: language)
+            playerSpace
+        }
+    }
+
     // MARK: - Top bar
 
-    private var topBar: some View {
+    private func topBar(language: PrayerLanguage) -> some View {
         HStack(alignment: .center, spacing: 16) {
             Button {
-                // Reset both indices; TV will jump back too.
+                // Return to the language picker. Reset sync indices so
+                // when the user picks again, both surfaces start fresh.
+                session.language = nil
                 session.topLineIndex = 0
                 session.topLineProgress = 0
             } label: {
@@ -81,11 +102,11 @@ struct PhoneRootView: View {
                     .foregroundStyle(PrayerTheme.primaryText)
                     .frame(width: 32, height: 32, alignment: .leading)
             }
-            .accessibilityLabel("Restart prayer")
+            .accessibilityLabel("Back to language picker")
 
             Spacer(minLength: 0)
 
-            Text(session.title)
+            Text(session.title(for: language))
                 .font(.system(size: 14, weight: .semibold, design: .serif))
                 .foregroundStyle(PrayerTheme.primaryText)
                 .lineLimit(1)
@@ -123,7 +144,7 @@ struct PhoneRootView: View {
 
     // MARK: - Transcript
 
-    private var transcript: some View {
+    private func transcript(language: PrayerLanguage) -> some View {
         let scale = session.fontScale
         return ScrollViewReader { proxy in
             ScrollView {
@@ -132,7 +153,7 @@ struct PhoneRootView: View {
                 // the topmost visible line at any scroll position.
                 VStack(alignment: .leading, spacing: scale.phoneVerticalGap) {
                     ForEach(session.lines.indices, id: \.self) { index in
-                        line(at: index, scale: scale)
+                        line(at: index, language: language, scale: scale)
                             .background(linePositionReporter(for: index))
                             .id(index)
                     }
@@ -234,11 +255,15 @@ struct PhoneRootView: View {
     }
 
     @ViewBuilder
-    private func line(at index: Int, scale: PrayerTheme.FontScale) -> some View {
-        let text = session.lines[index]
-        let isHeader = SamplePrayer.isSectionHeader(text)
+    private func line(
+        at index: Int,
+        language: PrayerLanguage,
+        scale: PrayerTheme.FontScale
+    ) -> some View {
+        let prayerLine = session.lines[index]
+        let isHeader = prayerLine.isHeader
 
-        Text(text)
+        Text(prayerLine.text(for: language))
             .font(.system(
                 size: isHeader ? scale.phoneHeader : scale.phoneBody,
                 weight: .regular,

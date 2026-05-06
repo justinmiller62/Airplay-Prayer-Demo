@@ -77,6 +77,16 @@ enum PrayerTheme {
         var tvLineSpacing: CGFloat { tvBody * 0.30 }
         var tvVerticalGap: CGFloat { tvBody * 0.66 }
 
+        // ── TV bilingual (Latin chosen — two columns share the canvas) ─
+
+        /// Smaller TV body size used when both Latin and English share
+        /// the screen side-by-side. Tuned so each column reads at a
+        /// comparable density to the single-column English layout.
+        var tvBilingualBody: CGFloat { tvBody * 0.78 }
+        var tvBilingualHeader: CGFloat { tvBilingualBody * 1.18 }
+        var tvBilingualLineSpacing: CGFloat { tvBilingualBody * 0.30 }
+        var tvBilingualVerticalGap: CGFloat { tvBilingualBody * 0.66 }
+
         // ── Cycling ────────────────────────────────────────────
 
         func next() -> FontScale {

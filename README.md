@@ -6,6 +6,23 @@ public reference for anyone whose app currently mirrors a portrait
 transcript onto a landscape TV and ends up with a tall portrait box
 wedged between two big black bars.
 
+📺 **Watch the demo:** <https://youtu.be/HXl0p1c1N5M>
+
+![English transcript: portrait phone view alongside the dedicated landscape TV view](screenshots/english.jpg)
+
+The phone keeps its portrait reader UI; the TV gets its own landscape
+scene laid out for ten-foot viewing. Scrolling on the phone moves the
+TV in lockstep — same line at the top, same fraction into that line,
+both surfaces sharing one source of truth.
+
+![Latin side-by-side: TV shows Latin and English translation line-for-line, phone shows Latin only](screenshots/latin.jpg)
+
+When the user picks **Latin** on the phone's first screen, the TV
+switches to a side-by-side bilingual layout — Latin on the left,
+English translation on the right, line-for-line — while the phone
+continues to show just the Latin. Sync still tracks the Latin reading
+exactly.
+
 ## A note for the Hallow team
 
 My wife and I are devoted Hallow users — we pray together every day,
@@ -60,24 +77,65 @@ text.
 
 ## How the phone-to-TV scroll sync works
 
-The phone publishes its raw scroll position as a normalised progress
-(`0...1`) using iOS 18's `onScrollGeometryChange`, which fires at the
-gesture's own framerate. The TV scene reads that value and applies a
-matching `.offset(y:)` translation to its rendered transcript — there is
-no `ScrollView` and no `scrollTo` on the TV side, just a continuous y
-translation. That's the whole responsiveness story: the TV is following
-the phone's finger, not catching up to a per-line snap.
+The phone publishes two values into the shared `PrayerSession`: the
+**index of the line currently at the top** of its viewport, and the
+**fraction (0...1) of how far it has scrolled into that line**. Both are
+computed from the phone's own line-frame measurements via a SwiftUI
+`PreferenceKey`, on every gesture frame from iOS 18's
+`onScrollGeometryChange`. The TV scene measures its own line frames the
+same way and applies a matching `.offset(y:)` translation so the same
+logical line lands at the top of its viewport at the same in-line
+fraction. There is no `ScrollView` and no `scrollTo` on the TV side, just
+a continuous y translation tracking the phone's finger.
+
+That line-index + line-fraction pair (rather than a single normalised
+scroll progress) is what makes the bilingual mode work: the line index
+is language-independent, so picking English or Latin doesn't disturb
+the sync.
 
 This demo shows that pattern end-to-end on a small, readable codebase.
 
+## Latin: bilingual side-by-side on the TV
+
+The first screen the user sees on the phone is a small picker:
+
+- **English** — the original behaviour. Phone and TV both show the
+  English transcript.
+- **Latin** — the phone shows the traditional Tridentine Latin texts;
+  the TV switches to a two-column layout with **Latin on the left** and
+  the **English translation on the right**, line-for-line.
+
+The two languages are stored as paired `PrayerLine` values
+(`{ english, latin, isHeader }`), so a given line index points at the
+same logical line regardless of which language is being displayed.
+Picking a language doesn't reshuffle the data; it just chooses which
+column(s) to render. That's why all the existing sync machinery keeps
+working: the phone publishes line index N, the TV places the row at
+index N at the top — whether that row is one column of English, one
+column of Latin, or two side-by-side columns of both.
+
+One small subtlety: in the side-by-side mode the row's visual height is
+`max(latinColumn, englishColumn)`, but the user is reading the **Latin**
+column on the phone. So the TV measures the Latin column (not the full
+row) for sync. The English column rides alongside as visual translation;
+if it wraps taller than the Latin, the extra height extends beyond the
+measured row but is irrelevant to the in-line progress fraction. Without
+this, sync drifts whenever the two languages wrap to a different number
+of visual lines.
+
+You can return to the language picker any time by tapping **X** on the
+phone.
+
 ## Demo content
 
-The sample content is the **Glorious Mysteries of the Holy Rosary**, using
-the traditional English texts of the Sign of the Cross, Apostles' Creed,
-Our Father, Hail Mary, Glory Be, Fatima Prayer, and Hail Holy Queen — all
-of which predate 1923 and are in the public domain. Lines repeat (Hail
-Mary × 10 per decade, etc.) are shown once with a count headline rather
-than literally repeated, which keeps the transcript readable.
+The sample content is the **Glorious Mysteries of the Holy Rosary**, in
+both **English** and traditional **Latin** (Tridentine) form: Sign of the
+Cross, Apostles' Creed / Symbolum Apostolorum, Our Father / Pater Noster,
+Hail Mary / Ave Maria, Glory Be / Gloria Patri, Fatima Prayer / Oratio
+Fatimae, and Hail Holy Queen / Salve Regina — all of which predate 1923
+and are in the public domain. Lines that repeat (Hail Mary × 10 per
+decade, etc.) are shown once with a count headline rather than literally
+repeated, which keeps the transcript readable.
 
 There is no audio playback, and there's no play/pause UI yet — the user
 scrolls the prayer manually on the phone and the TV follows along. A
@@ -119,17 +177,25 @@ To exercise it **on real hardware**:
 
 ## Manual test checklist
 
-- [ ] Launch on iPhone — phone shows the portrait prayer view.
+- [ ] Launch on iPhone — phone shows the **language picker** (English /
+      Latine).
 - [ ] Open Control Center → Screen Mirroring → pick an Apple TV.
-- [ ] TV shows the dedicated landscape prayer view, **not** a mirrored
-      phone screen.
+- [ ] Before picking a language, the TV shows a centred splash
+      ("Choose a language on iPhone to begin").
+- [ ] Pick **English** — phone shows the portrait prayer view, TV shows
+      the dedicated landscape single-column transcript, **not** a
+      mirrored phone screen.
 - [ ] Rotate the phone — phone stays portrait, TV stays landscape.
 - [ ] Scroll the transcript on the phone — the TV scrolls in lockstep,
       smoothly, with no per-line jumping.
-- [ ] Tap the "Tt" button — body text on the phone rescales through the
-      four sizes; the TV is unaffected (it has its own fixed scale).
-- [ ] Tap "X" on the phone — both phone and TV jump back to the start
-      of the prayer.
+- [ ] Tap the "Tt" button — body text rescales through the four sizes
+      on both the phone and the TV (each surface uses its own tier of
+      the same scale), and the line at the top stays the same line.
+- [ ] Tap "X" on the phone — phone returns to the language picker; TV
+      returns to the splash.
+- [ ] Pick **Latin** — phone shows the Latin transcript; TV shows the
+      bilingual side-by-side layout (Latin left, English right). Scroll
+      and confirm the same Latin line lands at the top of both.
 - [ ] Stop AirPlay — phone view is unaffected; no crash.
 
 ## Key files to read
@@ -162,19 +228,37 @@ AppDelegate.swift                  routes scene roles → scene delegates
         ├──► PhoneSceneDelegate.swift  ──► PhoneRootView   (portrait, controls)
         │                                       │
         │                                       ▼
-        │                              PrayerSession.shared  ◄── ObservableObject
+        │                              PrayerSession.shared  ◄── @Observable
         │                                       ▲                    (single source
         ▼                                       │                     of truth)
 ExternalSceneDelegate.swift  ──► TVRootView   (landscape, full-bleed)
 ```
 
-The phone scene and the TV scene each own their own `UIWindow`. They never
-talk to each other directly — they read and write the same
-`PrayerSession.shared` instance, and SwiftUI keeps both views in sync
-through `@Published`/`@EnvironmentObject`. The single piece of mutable
-state that crosses scenes is `PrayerSession.scrollProgress` — a `Double`
-in the range `0...1` that the phone writes from its scroll offset and
-the TV reads to position its content.
+The phone scene and the TV scene each own their own `UIWindow`. They
+never talk to each other directly — they read and write the same
+`PrayerSession.shared` instance (an `@Observable` class), and SwiftUI
+keeps both views in sync. Four pieces of mutable state cross scenes:
+
+- `language` (`PrayerLanguage?`) — `nil` until the user picks on the
+  first screen; thereafter `.english` or `.latin`. Both scenes read this
+  to decide what to render.
+- `topLineIndex` (`Int`) — the index of the line currently at the top of
+  the phone's viewport. The TV scrolls so that same line is at the top
+  of its viewport.
+- `topLineProgress` (`Double`, `0...1`) — how far the user has scrolled
+  *into* that top line. Combined with `topLineIndex`, this is enough to
+  re-position the TV at exactly the same point in the prayer regardless
+  of differing line heights between the two surfaces.
+- `fontScale` — the phone's "Tt" button writes here; the TV reads it and
+  uses its own (larger) tier of the same scale, so 1-to-1 line
+  correspondence is preserved across text-size changes.
+
+`@Observable` (rather than `ObservableObject`) is used deliberately for
+per-property change tracking: with `ObservableObject`, writing
+`topLineProgress` 60+ times per second would re-render the phone's
+~380-line transcript and the TV's matching offset would stutter. With
+`@Observable`, only views that actually read a given property re-render
+when it changes.
 
 ## Constraints / non-goals
 
